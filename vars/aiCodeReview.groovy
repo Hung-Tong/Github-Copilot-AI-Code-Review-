@@ -99,7 +99,7 @@ Only include items for lines that actually appear in the diff above.
 If there are no inline comments, output an empty array: []
 Output ONLY the raw JSON array after the delimiter — no markdown fences, no extra text."
 
-                        copilot --model gpt-5.6-terra --prompt "$PROMPT" --silent --yolo > review_raw.txt
+                        copilot --model grok-4.6 --prompt "$PROMPT" --silent > review_raw.txt
 
                         # Split on ---INLINE_JSON--- delimiter
                         awk '/^---INLINE_JSON---$/{found=1; next} !found{print}' review_raw.txt > review.txt
