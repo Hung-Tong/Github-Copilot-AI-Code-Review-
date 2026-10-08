@@ -202,16 +202,28 @@ Output ONLY the raw JSON array after the delimiter — no markdown fences, no ex
 
         post {
             failure {
-                sh """
+                script {
+                    if (getContext(hudson.FilePath)) {
+                        sh """
                     printf '## 🤖 Copilot Review — Failed\n\nCheck [Jenkins build](${env.BUILD_URL}).\n' > fail_comment.txt
                     glab mr note "${env.MR_IID}" \
                         --repo "${env.GITLAB_PROJECT_PATH}" \
                         --message "\$(cat fail_comment.txt)" || true
-                """
+                        """
+                    } else {
+                        echo 'Skipping failure comment: no workspace context is available.'
+                    }
+                }
             }
             always {
-                sh 'rm -f mr_meta.txt mr_diff.txt review_raw.txt review.txt review_inline.json base_sha.txt start_sha.txt head_sha.txt comment.txt fail_comment.txt || true'
-                cleanWs()
+                script {
+                    if (getContext(hudson.FilePath)) {
+                        sh 'rm -f mr_meta.txt mr_diff.txt review_raw.txt review.txt review_inline.json base_sha.txt start_sha.txt head_sha.txt comment.txt fail_comment.txt || true'
+                        cleanWs()
+                    } else {
+                        echo 'Skipping cleanup: no workspace context is available.'
+                    }
+                }
             }
         }
     }
