@@ -68,36 +68,19 @@ def call(Map config = [:]) {
 
             stage('AI Code Review') {
                 steps {
+                    writeFile file: 'ponytail-skill.md', text: libraryResource('prompts/ponytail-review.md')
                     sh '''
+                        PONYTAIL_SKILL=$(cat ponytail-skill.md)
                         MR_META=$(cat mr_meta.txt)
                         MR_DIFF=$(cat mr_diff.txt)
 
-                        PROMPT="You are a senior software engineer performing a code review.
+                        PROMPT="${PONYTAIL_SKILL}
 
 Here is the merge request metadata:
 ${MR_META}
 
 Here is the diff:
-${MR_DIFF}
-
-Write a structured review using exactly these sections (no additional headers or labels):
-1. **Summary** – What does this MR do?
-2. **Changes** – Key files and logic changed
-3. **Issues** – Bugs, security concerns, logic errors
-4. **Suggestions** – Non-blocking improvements
-5. **Verdict** – LGTM / Needs Changes / Needs Discussion
-
-Then output the exact delimiter on its own line:
----INLINE_JSON---
-
-Then output a JSON array of inline comments for specific lines. Each item must have:
-  - new_path: relative file path in the repo (string)
-  - new_line: line number in the new version of the file (integer)
-  - body: the comment text (string)
-  - severity: one of 'issue', 'suggestion' (string)
-Only include items for lines that actually appear in the diff above.
-If there are no inline comments, output an empty array: []
-Output ONLY the raw JSON array after the delimiter — no markdown fences, no extra text."
+${MR_DIFF}"
 
                         copilot --model gemini-4-argon --prompt "$PROMPT" --silent > review_raw.txt
 
@@ -167,9 +150,9 @@ Output ONLY the raw JSON array after the delimiter — no markdown fences, no ex
                             NEW_PATH=$(jq -r --argjson i "$i" '.[$i].new_path' review_inline.json)
                             NEW_LINE=$(jq -r --argjson i "$i" '.[$i].new_line' review_inline.json)
                             BODY=$(jq -r --argjson i "$i" '.[$i].body' review_inline.json)
-                            SEVERITY=$(jq -r --argjson i "$i" '.[$i].severity // "suggestion"' review_inline.json)
-                            # Strip any leading severity label the AI may have included (e.g. "Nitpick: ", "Issue: ")
-                            BODY=$(echo "$BODY" | sed -E 's/^(Issue|Suggestion|issue|suggestion):[[:space:]]*//')
+                            SEVERITY=$(jq -r --argjson i "$i" '.[$i].severity // "should-fix"' review_inline.json)
+                            # Strip any leading severity label the AI may have included (e.g. "Must fix: ", "Issue: ")
+                            BODY=$(echo "$BODY" | sed -E 's/^(Must fix|Should fix|Nice to have|must-fix|should-fix|nice-to-have|Issue|Suggestion|issue|suggestion):[[:space:]]*//')
 
                             PAYLOAD=$(jq -n \
                                 --arg body "[$SEVERITY] $BODY" \
@@ -210,7 +193,7 @@ Output ONLY the raw JSON array after the delimiter — no markdown fences, no ex
                 """
             }
             always {
-                sh 'rm -f mr_meta.txt mr_diff.txt review_raw.txt review.txt review_inline.json base_sha.txt start_sha.txt head_sha.txt comment.txt fail_comment.txt || true'
+                sh 'rm -f ponytail-skill.md mr_meta.txt mr_diff.txt review_raw.txt review.txt review_inline.json base_sha.txt start_sha.txt head_sha.txt comment.txt fail_comment.txt || true'
                 cleanWs()
             }
         }
