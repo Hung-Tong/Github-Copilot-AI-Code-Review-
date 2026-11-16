@@ -105,7 +105,7 @@ ${MR_DIFF}"
                           printf \'## 🤖 Copilot AI Code Review\n\n\'
                           printf \'_Automated review by GitHub Copilot via Jenkins._\n\n---\n\'
                           cat review.txt
-                          printf "\n\n---\n_Inline comments posted: ${INLINE_COUNT}_ | _Re-run: trigger the **mr-ai-review** job._\n"
+                          printf "\n\n---\n_Review threads requested: ${INLINE_COUNT}_ | _Re-run: trigger the **mr-ai-review** job._\n"
                         } > comment.txt
 
                         glab mr note "${MR_IID}" \
@@ -143,12 +143,17 @@ ${MR_DIFF}"
 
                         # Validate inline JSON is a non-empty array before iterating
                         COUNT=$(jq \'length\' review_inline.json 2>/dev/null || echo 0)
-                        echo "Inline comments to post: $COUNT"
+                        echo "Review threads to post: $COUNT"
 
                         i=0
                         while [ "$i" -lt "$COUNT" ]; do
                             NEW_PATH=$(jq -r --argjson i "$i" '.[$i].new_path' review_inline.json)
+                            OLD_PATH=$(jq -r --argjson i "$i" '.[$i].old_path // .[$i].new_path' review_inline.json)
                             NEW_LINE=$(jq -r --argjson i "$i" '.[$i].new_line' review_inline.json)
+                            POSITION_TYPE=text
+                            if [ "$NEW_LINE" = "null" ]; then
+                                POSITION_TYPE=file
+                            fi
                             BODY=$(jq -r --argjson i "$i" '.[$i].body' review_inline.json)
                             SEVERITY=$(jq -r --argjson i "$i" '.[$i].severity // "should-fix"' review_inline.json)
                             # Strip any leading severity label the AI may have included (e.g. "Must fix: ", "Issue: ")
@@ -156,13 +161,14 @@ ${MR_DIFF}"
 
                             PAYLOAD=$(jq -n \
                                 --arg body "[$SEVERITY] $BODY" \
-                                --arg position_type "text" \
+                                --arg position_type "$POSITION_TYPE" \
                                 --arg new_path "$NEW_PATH" \
+                                --arg old_path "$OLD_PATH" \
                                 --argjson new_line "$NEW_LINE" \
                                 --arg base_sha "$BASE_SHA" \
                                 --arg start_sha "$START_SHA" \
                                 --arg head_sha "$HEAD_SHA" \
-                                \'{body: $body, position: {position_type: $position_type, new_path: $new_path, new_line: $new_line, base_sha: $base_sha, start_sha: $start_sha, head_sha: $head_sha}}\')
+                                \'{body: $body, position: ({position_type: $position_type, new_path: $new_path, old_path: $old_path, base_sha: $base_sha, start_sha: $start_sha, head_sha: $head_sha} + (if $position_type == "text" then {new_line: $new_line} else {} end))}\')
 
                             HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" \
                                 --header "PRIVATE-TOKEN: ${GLAB_TOKEN}" \
@@ -171,9 +177,10 @@ ${MR_DIFF}"
                                 "${GITLAB_HOST}/api/v4/projects/${GITLAB_PROJECT_ID}/merge_requests/${MR_IID}/discussions")
 
                             if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-                                echo "Posted inline comment $((i+1))/$COUNT on ${NEW_PATH}:${NEW_LINE} (HTTP $HTTP_CODE)"
+                                echo "Posted $POSITION_TYPE review thread $((i+1))/$COUNT on ${NEW_PATH} (HTTP $HTTP_CODE)"
                             else
-                                echo "WARNING: Failed to post inline comment $((i+1))/$COUNT on ${NEW_PATH}:${NEW_LINE} (HTTP $HTTP_CODE) — skipping"
+                                echo "ERROR: Failed to post $POSITION_TYPE review thread $((i+1))/$COUNT on ${NEW_PATH} (HTTP $HTTP_CODE)"
+                                exit 1
                             fi
 
                             i=$((i+1))

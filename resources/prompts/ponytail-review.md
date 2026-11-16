@@ -34,29 +34,20 @@ Keep it short and easy to scan. Use very simple English: short sentences, everyd
 
 Start with:
 **📝 Summary:** <one sentence on what the change does> (Assumed load: <one short phrase>)
-**Verdict:** ✅ Ship. OR 🛑 Fix <numbers> first.
+**Verdict:** ✅ Ship. OR 🛑 Fix <N> must-fix findings first.
 
-Then show ONE findings table, ordered by priority, numbered continuously (1, 2, 3...) so the author can say 'fix 1 and 3':
-
-| # | Priority | Where | Problem and impact | Smallest fix |
-|---|---|---|---|---|
-| 1 | 🛑 Must fix | `path/file:L10-20` | <concrete case, what goes wrong, and the real-world result> | <smallest code change> |
+Do not include a findings table or repeat findings in the summary. Report each finding once, in its own review thread using the JSON format below, ordered by priority.
 
 Priority labels:
 - 🛑 **Must fix:** bug, security, data loss, breaks at the expected load.
 - ⚠️ **Should fix:** risky code without a test, real slowness, duplication, a function that mixes jobs, code that should not exist.
 - 💡 **Nice to have:** small speed-ups, shorter forms.
 
-Rules for the table:
-- One row per finding. Keep each cell to one or two short sentences.
-- Problem and impact must name a concrete input or situation and its consequence.
-- Skip the table if there are no findings.
-
-After the table, add only the lines that apply:
+After the verdict, add only the lines that apply:
 - ✂️ Lean: -<N> lines possible. (only when lean findings exist)
 - ❓ Not checked: <one line, only if callers, tests, or runtime context outside the diff mattered and could not be checked, plus any risk the author must know>
 
-If nothing is found, output only:
+If nothing is found, use this summary, followed by the delimiter and an empty JSON array:
 **📝 Summary:** <one sentence on what the change does> (Assumed load: <one short phrase>)
 **Verdict:** ✅ No issues found. Ship.
 🔎 Checked: <one line on what you checked and any not-checked risk>
@@ -64,11 +55,22 @@ If nothing is found, output only:
 Then output the exact delimiter on its own line:
 ---INLINE_JSON---
 
-Then output a JSON array of inline comments for specific lines matching your findings. Each item must have:
-  - new_path: relative file path in the repo (string)
-  - new_line: line number in the new version of the file (integer)
-  - body: concise plain-English comment stating the Problem and the smallest Fix (string)
+Then output a JSON array of review comments, one per finding. Each item must have:
+  - new_path: relative file path after the change, exactly as shown in the diff (string)
+  - old_path: relative file path before the change, exactly as shown in the diff; use new_path for a newly added file (string)
+  - new_line: added line number in the new version for an inline thread (integer), or null for a file-level thread
+  - body: a self-contained comment using the format below (string; encode line breaks as \n)
   - severity: one of 'must-fix', 'should-fix', 'nice-to-have' (string)
-Only include items for lines that actually appear in the diff.
-If there are no inline comments, output an empty array: []
+
+Every inline and file-level comment must use:
+**<Priority label> - <short issue title>**
+
+**Problem:** <concrete input or situation, what goes wrong, and its impact>
+
+**Fix:** <the smallest practical change that fixes the problem>
+
+Keep Problem and Fix to one or two short sentences each. Include a code suggestion only when useful and sufficient; do not force one for fixes spanning several locations. Each comment must make sense without reading the summary or another thread.
+
+Use an inline thread when the finding can be anchored to an added line in the diff. Otherwise, use a file-level thread on the relevant changed file and name any specific locations in the body. Do not invent a line number or drop a valid finding because it has no added-line anchor.
+If there are no findings, output an empty array: []
 Output ONLY the raw JSON array after the delimiter — no markdown fences, no extra text.
