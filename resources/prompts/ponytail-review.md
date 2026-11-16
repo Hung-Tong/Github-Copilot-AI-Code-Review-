@@ -63,13 +63,14 @@ Then output a JSON array of review comments, one per finding. Each item must hav
   - severity: one of 'must-fix', 'should-fix', 'nice-to-have' (string)
 
 Every inline and file-level comment must use:
-**<Priority label> - <short issue title>**
+**<short issue title>**
 
 **Problem:** <concrete input or situation, what goes wrong, and its impact>
 
 **Fix:** <the smallest practical change that fixes the problem>
 
 Keep Problem and Fix to one or two short sentences each. Include a code suggestion only when useful and sufficient; do not force one for fixes spanning several locations. Each comment must make sense without reading the summary or another thread.
+Do not repeat the priority label in the comment; the posting pipeline adds it.
 
 Use an inline thread when the finding can be anchored to an added line in the diff. Otherwise, use a file-level thread on the relevant changed file and name any specific locations in the body. Do not invent a line number or drop a valid finding because it has no added-line anchor.
 If there are no findings, output an empty array: []
