@@ -157,7 +157,7 @@ ${MR_DIFF}"
                             BODY=$(jq -r --argjson i "$i" '.[$i].body' review_inline.json)
                             SEVERITY=$(jq -r --argjson i "$i" '.[$i].severity // "should-fix"' review_inline.json)
                             # Remove priority headings so the pipeline's severity prefix is not duplicated.
-                            BODY=$(echo "$BODY" | sed -E 's/^\*\*[^*]*(Must fix|Should fix|Nice to have)[[:space:]]*-[[:space:]]*/**/; s/^(Must fix|Should fix|Nice to have|must-fix|should-fix|nice-to-have|Issue|Suggestion|issue|suggestion):[[:space:]]*//')
+                            BODY=$(echo "$BODY" | sed -E 's/^\\*\\*[^*]*(Must fix|Should fix|Nice to have)[[:space:]]*-[[:space:]]*/**/; s/^(Must fix|Should fix|Nice to have|must-fix|should-fix|nice-to-have|Issue|Suggestion|issue|suggestion):[[:space:]]*//')
                             case "$SEVERITY" in
                                 must-fix) SEVERITY_ICON="🛑" ;;
                                 should-fix) SEVERITY_ICON="⚠️" ;;
