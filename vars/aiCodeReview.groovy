@@ -82,7 +82,7 @@ ${MR_META}
 Here is the diff:
 ${MR_DIFF}"
 
-                        copilot --model gemini-4-argon --prompt "$PROMPT" --silent > review_raw.txt
+                        copilot --model gemini-4-carbon --prompt "$PROMPT" --silent > review_raw.txt
 
                         # Split on ---INLINE_JSON--- delimiter
                         awk '/^---INLINE_JSON---$/{found=1; next} !found{print}' review_raw.txt > review.txt
@@ -156,11 +156,17 @@ ${MR_DIFF}"
                             fi
                             BODY=$(jq -r --argjson i "$i" '.[$i].body' review_inline.json)
                             SEVERITY=$(jq -r --argjson i "$i" '.[$i].severity // "should-fix"' review_inline.json)
-                            # Strip any leading severity label the AI may have included (e.g. "Must fix: ", "Issue: ")
-                            BODY=$(echo "$BODY" | sed -E 's/^(Must fix|Should fix|Nice to have|must-fix|should-fix|nice-to-have|Issue|Suggestion|issue|suggestion):[[:space:]]*//')
+                            # Remove priority headings so the pipeline's severity prefix is not duplicated.
+                            BODY=$(echo "$BODY" | sed -E 's/^\*\*[^*]*(Must fix|Should fix|Nice to have)[[:space:]]*-[[:space:]]*/**/; s/^(Must fix|Should fix|Nice to have|must-fix|should-fix|nice-to-have|Issue|Suggestion|issue|suggestion):[[:space:]]*//')
+                            case "$SEVERITY" in
+                                must-fix) SEVERITY_ICON="🛑" ;;
+                                should-fix) SEVERITY_ICON="⚠️" ;;
+                                nice-to-have) SEVERITY_ICON="💡" ;;
+                                *) SEVERITY_ICON="" ;;
+                            esac
 
                             PAYLOAD=$(jq -n \
-                                --arg body "[$SEVERITY] $BODY" \
+                                --arg body "[$SEVERITY] $SEVERITY_ICON $BODY" \
                                 --arg position_type "$POSITION_TYPE" \
                                 --arg new_path "$NEW_PATH" \
                                 --arg old_path "$OLD_PATH" \
