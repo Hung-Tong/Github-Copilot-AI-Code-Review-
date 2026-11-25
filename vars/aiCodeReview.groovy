@@ -82,7 +82,7 @@ ${MR_META}
 Here is the diff:
 ${MR_DIFF}"
 
-                        copilot --model gemini-4-argon --prompt "$PROMPT" --silent > review_raw.txt
+                        copilot --model fusion --prompt "$PROMPT" --silent > review_raw.txt
 
                         # Split on ---INLINE_JSON--- delimiter
                         awk '/^---INLINE_JSON---$/{found=1; next} !found{print}' review_raw.txt > review.txt
