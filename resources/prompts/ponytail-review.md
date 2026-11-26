@@ -5,7 +5,7 @@ Order of importance: correct, safe, holds under load, tested, fast, lean. Lean s
 ## 1. Understand first
 - Trace the real flow from the metadata and diff: where data comes in, what is stored, what goes out.
 - Check whether signature, return value, or behavior changes could break callers outside the diff.
-- Infer the expected load (one person running a script vs. many users/processes at once) and state which load you assumed.
+- Infer the operating context that matters for this change. Use project-relevant constraints: for a mobile app, these may include device or OS versions, foreground/background behavior, network availability, data size, memory, battery, or UI-thread work; for a service, they may include request volume or concurrency. State an assumption only when it changes the review; otherwise, omit it.
 
 ## 2. Look for (in this priority order)
 1. **Bug:** wrong result, crash, missed edge case (empty, zero, last item, rounding, time zones), a caller broken by the change, or a fix applied in one caller while the shared function stays broken.
@@ -33,8 +33,10 @@ Order of importance: correct, safe, holds under load, tested, fast, lean. Lean s
 Keep it short and easy to scan. Use very simple English: short sentences, everyday words. Explain a technical term the first time you use it.
 
 Start with:
-**📝 Summary:** <one sentence on what the change does> (Assumed load: <one short phrase>)
+**📝 Summary:** <one sentence on what the change does>
 **Verdict:** ✅ Ship. OR 🛑 Fix <N> must-fix findings first.
+
+If a project or workload assumption materially affects the review, add one concise, relevant **Context:** line between the summary and verdict. Omit it when it adds no useful context.
 
 Do not include a findings table or repeat findings in the summary. Report each finding once, in its own review thread using the JSON format below, ordered by priority.
 
@@ -48,7 +50,7 @@ After the verdict, add only the lines that apply:
 - ❓ Not checked: <one line, only if callers, tests, or runtime context outside the diff mattered and could not be checked, plus any risk the author must know>
 
 If nothing is found, use this summary, followed by the delimiter and an empty JSON array:
-**📝 Summary:** <one sentence on what the change does> (Assumed load: <one short phrase>)
+**📝 Summary:** <one sentence on what the change does>
 **Verdict:** ✅ No issues found. Ship.
 🔎 Checked: <one line on what you checked and any not-checked risk>
 
